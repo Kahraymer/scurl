@@ -2,7 +2,7 @@
 # Ben Krausz
 
 from sys import argv, stdout
-from socket import socket
+import socket
 import re
 import datetime
 
@@ -17,10 +17,20 @@ doesn't work for stanford.edu (related to www-aws?)
 
 def main():
 
-	url = "www.facebook.com"
+	url = "www.google.com"
 	# Setting up socket, context, and connection
-	sock = socket()
+	sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 	mycontext = SSL.Context(SSL.TLSv1_METHOD)
+	# mycontext.set_default
+
+
+	"""
+	Context.set_default_verify_paths()
+	Context.set_cipher
+	Context.set_verify
+	Write a callback
+	"""
+
 	# mycontext.set_tmp_ecdh(crypto.get_elliptic_curves())
 	myconn = SSL.Connection(mycontext, sock)
 	
@@ -47,12 +57,8 @@ def main():
 
 		if not (start_date < now < exp_date):
 			print "Not in valid time"
-			# THROW ERROR HERE
+			# THROW ERROR HERE!
 			break
-
-		# print cert.get_pubkey()
-		# print cert.get_pubkey().bits()
-		# print cert.get_signature_algorithm()
 
 		if i == 0:
 			print cert_chain[i].get_pubkey()
@@ -65,21 +71,24 @@ def main():
 
 		print
 
-	return
+	# return
 
 	# Sending a dummy message to poke website and get error message page
 	# Should be sending some sort of GET request
 	print myconn.getpeername()
 	print myconn.state_string()
-	myconn.sendall("GET / HTTPS/1.1") # HTTP/1.1
-	print "Sent that ish"
+	myconn.sendall("GET / HTTP/1.1\r\nHost: " + url + "\r\nUser-Agent: Tom and Ben\r\n\r\n") # HTTP/1.1
+	print "Sent a GET"
 
-	# Receiving Facebook's error page html
 	t1 = []
 	try:
 		while True:
-			r = myconn.recv(8192)
+			numBytes = 8192
+			r = myconn.recv(numBytes)
+			if r == "":
+				break
 			t1.append(r)
+			print r
 	except SSL.ZeroReturnError:
 		pass
 
