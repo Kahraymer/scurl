@@ -17,17 +17,19 @@ doesn't work for stanford.edu (related to www-aws?)
 
 def main():
 
-	url = "www.google.com"
+	url = "www.facebook.com"
 	# Setting up socket, context, and connection
 	sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 	mycontext = SSL.Context(SSL.TLSv1_METHOD)
-	# mycontext.set_default
+	mycontext.set_default_verify_paths()
+	# mycontext.set_verify()
 
 
 	"""
 	Context.set_default_verify_paths()
 	Context.set_cipher
 	Context.set_verify
+	# REJECT RC4 and RC4-md5 cipher suites
 	Write a callback
 	"""
 
@@ -82,14 +84,16 @@ def main():
 
 	t1 = []
 	try:
+		numBytes = 1024
 		while True:
-			numBytes = 8192
+			# if len(r) == 0:
+			# 	print "DONE!"
 			r = myconn.recv(numBytes)
-			if r == "":
-				break
 			t1.append(r)
-			print r
-	except SSL.ZeroReturnError:
+			if len(r) < numBytes and "</html>" in r:
+				print "DONE!"
+				break
+	except (SSL.ZeroReturnError, SSL.Error):
 		pass
 
 	myconn.shutdown()
