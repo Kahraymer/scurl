@@ -49,7 +49,7 @@ def main():
 			print "Not in valid time"
 			# THROW ERROR HERE
 			break
-			
+
 		# print cert.get_pubkey()
 		# print cert.get_pubkey().bits()
 		# print cert.get_signature_algorithm()
@@ -66,8 +66,6 @@ def main():
 		print
 
 	return
-
-
 
 	# Sending a dummy message to poke website and get error message page
 	# Should be sending some sort of GET request
