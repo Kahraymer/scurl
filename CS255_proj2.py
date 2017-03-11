@@ -14,23 +14,64 @@ Things that are put on hold:
 Comparing to list of trusted CAs
 doesn't work for stanford.edu (related to www-aws?)
 """
+url = ""
 
 def cb_func(conn, cert, errno, errdepth, ok):
+	global url
 	print "testing"
-	print "errno: " + errno
-	print "errdepth: " + errdepth
+	print "errno: ", errno
+	print "errdepth: ", errdepth
+
+
+	# Checking name on leaf certificate (doesn't work)
+
+	""" 
+	NOTES:
+	Also it allows wildcards on any place which is against the rule that 
+	wildcards should only be allowed in the leftmost label: *.example.com 
+	is fine while www.*.com or even *.*.* is not allowed but accepted by your code.
+	"""
+
+
+	# if errdepth == 0:
+	# 	regex = cert.get_subject().commonName.decode().replace('.', r'\.').replace('*',r'.*') + '$'
+		# print regex
+	# 	if re.match(regex, url):
+	# 	if cert.get_subject().commonName != url:
+			# print "Certificate name doesn't match host"
+			# return False
+
+	if (errno == 9 or errno == 10):
+		print "Not in valid time"
+		return False
+	else:
+		print "Valid time"
+
+	# start_date = int(cert.get_notBefore()[:-1])
+	# exp_date = int(cert.get_notAfter()[:-1])
+	# now = int(datetime.datetime.utcnow().strftime("%Y%m%d%H%M%S"))
+
+	# if not (start_date < now < exp_date):
+	# 	print "Not in valid time"
+	# 	# THROW ERROR HERE!
+	# 	return False
+	# else:
+	# 	print "Valid time :)"
+
 	return ok
 
 
 
 def main():
+	global url
 
-	url = "expired.badssl.com"
+	url = "www.google.com"
 	# Setting up socket, context, and connection
 	sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 	mycontext = SSL.Context(SSL.TLSv1_METHOD)
-	# mycontext.set_default
 
+	mycontext.set_verify(SSL.VERIFY_PEER|SSL.VERIFY_FAIL_IF_NO_PEER_CERT, cb_func)
+	mycontext.set_default_verify_paths()
 	"""
 	Context.set_default_verify_paths()
 	Context.set_cipher
@@ -42,14 +83,22 @@ def main():
 	#name matches
 	#paths are verified
 
-
 	# mycontext.set_tmp_ecdh(crypto.get_elliptic_curves())
 	myconn = SSL.Connection(mycontext, sock)
+
+	myconn.set_tlsext_host_name("server")
+	myconn.set_connect_state()
 	
 	# Connecting to a website and exchanging keys
+	print url
+
 	myconn.connect((url, 443))
-	#myconn.do_handshake()
-	myconn.set_connect_state()
+
+	try:
+		myconn.do_handshake()
+	except (SSL.ZeroReturnError, SSL.Error):
+		print "Invalid certificate"
+		return
 
 	print "Connection established"
 
@@ -57,8 +106,6 @@ def main():
 	cert_chain = myconn.get_peer_cert_chain()
 	print cert_chain
 	#mycontext.set_options()
-	mycontext.set_default_verify_paths()
-	mycontext.set_verify(SSL.VERIFY_PEER|SSL.VERIFY_FAIL_IF_NO_PEER_CERT, cb_func)
 
 	# The browser checks that the certificate was issued by a trusted party 
 	# (usually a trusted root CA), that the certificate is still valid and 
@@ -112,7 +159,7 @@ def main():
 
 	myconn.shutdown()
 	myconn.close()
-	#print "".join(t1)
+	# print "".join(t1)
 
 
 
