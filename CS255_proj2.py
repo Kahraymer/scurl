@@ -2,6 +2,8 @@
 
 
 """
+to make it a shell command:
+1) rename the file to just "scurl"
 in directory, type:
 chmod 755 scurl
 now it works as a shell command
@@ -15,6 +17,7 @@ import socket
 import re
 import datetime
 from urlparse import urlparse
+import copy
 
 from OpenSSL import SSL
 from OpenSSL import crypto
@@ -24,10 +27,10 @@ Things that are put on hold:
 Comparing to list of trusted CAs
 doesn't work for stanford.edu (related to www-aws?)
 """
-url = ""
+url_object = {}
 
 def cb_func(conn, cert, errno, errdepth, ok):
-	global url
+	global url_object
 	print "testing"
 	print "errno: ", errno
 	print "errdepth: ", errdepth
@@ -42,6 +45,24 @@ def cb_func(conn, cert, errno, errdepth, ok):
 	is fine while www.*.com or even *.*.* is not allowed but accepted by your code.
 	"""
 
+	if errdepth == 0:
+		
+		pattern = copy.deepcopy(cert.get_subject().commonName)
+		
+		num_dots1 = cert.get_subject().commonName.count('.')
+		num_dots2 = url_object['common_name'].count('.')
+		if num_dots1 != num_dots2:
+			# Wildcard character introduced new periods, which isn't allowed
+			return False
+		if pattern.rfind('*') > pattern.find('.'):
+			# Asterisk not in left section
+			return False
+		
+		pattern = pattern.replace('.', r'\.').replace('*', r'.*')
+		print url_object['common_name']
+		print pattern
+		if not re.match(pattern, url_object['common_name']):
+			return False		
 
 	# if errdepth == 0:
 	# 	regex = cert.get_subject().commonName.decode().replace('.', r'\.').replace('*',r'.*') + '$'
@@ -52,10 +73,10 @@ def cb_func(conn, cert, errno, errdepth, ok):
 			# return False
 
 	if (errno == 9 or errno == 10):
-		print "Not in valid time"
+		# print "Not in valid time"
 		return False
-	else:
-		print "Valid time"
+	# else:
+		# print "Valid time"
 
 	# start_date = int(cert.get_notBefore()[:-1])
 	# exp_date = int(cert.get_notAfter()[:-1])
@@ -81,6 +102,7 @@ url_object = {
 Returns none if invalid url type
 """
 def parse_url(url):
+	global url_object	
 
 	if url.startswith('//'):
 		url = 'https:' + url
@@ -99,8 +121,6 @@ def parse_url(url):
     #        params='', query='', fragment='')
 	print parsed_url
 
-	url_object = {}
-
 	if len(parsed_url.netloc) > 0:
 		if ":" in parsed_url.netloc:
 			index = parsed_url.netloc.find(":")
@@ -115,9 +135,9 @@ def parse_url(url):
 		if len(url_object['path']) == 0:
 			url_object['path'] = '/'
 	else:
-		return None
+		return False
 
-	return url_object
+	return True
 
 """
 Sets up the socket, context, and connection.
@@ -146,10 +166,13 @@ def establish_connection(url_obj, tls_v):
 
 
 def main():
-	global url
+	global url_object
 
-	url = "https://www.google.com"
-	url_object = parse_url(url)
+	url = "www.facebook.com"
+	worked = parse_url(url)
+	if not worked:
+		"Badly formatted url"
+		return
 
 	myConnection = establish_connection(url_object, SSL.TLSv1_METHOD)
 	if myConnection is None:
