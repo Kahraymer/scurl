@@ -1,3 +1,12 @@
+#!/usr/bin/python
+
+
+"""
+in directory, type:
+chmod 755 scurl
+now it works
+"""
+
 # Tom Kremer
 # Ben Krausz
 
@@ -5,6 +14,7 @@ from sys import argv, stdout
 import socket
 import re
 import datetime
+from urlparse import urlparse
 
 from OpenSSL import SSL
 from OpenSSL import crypto
@@ -61,11 +71,68 @@ def cb_func(conn, cert, errno, errdepth, ok):
 	return ok
 
 
+"""
+Constructs a parsed url
+url_object = {
+	common_name: "www.google.com",
+	port: 443 (int)
+	path: '/hello'
+
+}
+"""
+def parse_url(url):
+
+	if url.startswith('//'):
+		url = 'https:' + url
+
+	if url.startswith('http://'):
+		url = url[:4] + 's' + url[4:]
+
+	if not url.startswith('https://'):
+		url = "https://" + url
+
+	if url[8:11] != 'www':
+		url = url[:8] + 'www.' + url[8:]
+	
+	parsed_url = urlparse(url)
+	# ParseResult(scheme='http', netloc='www.cwi.nl:80', path='/%7Eguido/Python.html',
+    #        params='', query='', fragment='')
+	print parsed_url
+
+	url_object = {}
+
+	if len(parsed_url.netloc) > 0:
+		if ":" in parsed_url.netloc:
+			index = parsed_url.netloc.find(":")
+			url_object['common_name'] = parsed_url.netloc[:index]
+			url_object['port'] = int(parsed_url.netloc[index+1:])
+		else:
+			url_object['common_name'] = parsed_url.netloc
+			url_object['port'] = 443
+
+		# Path is just everything after the common name and/or port
+		url_object['path'] = url.split(parsed_url.netloc)[1]
+		if len(url_object['path']) == 0:
+			url_object['path'] = '/'
+	else:
+		return None
+
+	return url_object
+
+
 
 def main():
 	global url
 
-	url = "www.google.com"
+	url = "https://www.google.com"
+
+
+	url_object = parse_url(url)
+
+	print url_object['common_name']
+	print url_object['port']
+	print url_object['path']
+
 	# Setting up socket, context, and connection
 	sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 	mycontext = SSL.Context(SSL.TLSv1_METHOD)
@@ -79,20 +146,12 @@ def main():
 	Write a callback
 	"""
 
-	#date is valid
-	#name matches
-	#paths are verified
-
-	# mycontext.set_tmp_ecdh(crypto.get_elliptic_curves())
 	myconn = SSL.Connection(mycontext, sock)
 
 	myconn.set_tlsext_host_name("server")
 	myconn.set_connect_state()
-	
-	# Connecting to a website and exchanging keys
-	print url
 
-	myconn.connect((url, 443))
+	myconn.connect((url_object['common_name'], url_object['port']))
 
 	try:
 		myconn.do_handshake()
@@ -102,7 +161,7 @@ def main():
 
 	print "Connection established"
 
-	cert = myconn.get_peer_certificate()
+	# cert = myconn.get_peer_certificate()
 	cert_chain = myconn.get_peer_cert_chain()
 	print cert_chain
 	#mycontext.set_options()
@@ -110,45 +169,14 @@ def main():
 	# The browser checks that the certificate was issued by a trusted party 
 	# (usually a trusted root CA), that the certificate is still valid and 
 	# that the certificate is related to the site contacted.
-	'''
-	for i in xrange(len(cert_chain)):
-		name_obj = cert_chain[i].get_subject()
-		print name_obj.commonName.decode()
-
-		start_date = int(cert_chain[i].get_notBefore()[:-1])
-		exp_date = int(cert_chain[i].get_notAfter()[:-1])
-		now = int(datetime.datetime.utcnow().strftime("%Y%m%d%H%M%S"))
-
-		if not (start_date < now < exp_date):
-			print "Not in valid time"
-			# THROW ERROR HERE!
-			break
-
-		if i == 0:
-			print cert_chain[i].get_pubkey()
-			regex = name_obj.commonName.decode().replace('.', r'\.').replace('*',r'.*') + '$'
-			print regex
-			if re.match(regex, url):
-				print "It's a match!"
-			else:
-				print "No match!"
-	'''
-
-	# return
-
-	# Sending a dummy message to poke website and get error message page
-	# Should be sending some sort of GET request
-	print myconn.getpeername()
 	print myconn.state_string()
-	myconn.sendall("GET / HTTP/1.1\r\nHost: " + url + "\r\nUser-Agent: Tom and Ben\r\n\r\n") # HTTP/1.1
-	print "Sent a GET"
+	myconn.sendall("GET " + url_object['path'] + " HTTP/1.1\r\nHost: " + url_object['common_name'] + "\r\nUser-Agent: Tom and Ben\r\n\r\n") # HTTP/1.1
+	print "Sent a GET to: " + "GET " + url_object['path'] + " HTTP/1.1\r\nHost: " + url_object['common_name'] + "\r\nUser-Agent: Tom and Ben\r\n\r\n"
 
 	t1 = []
 	try:
 		numBytes = 1024
 		while True:
-			# if len(r) == 0:
-			# 	print "DONE!"
 			r = myconn.recv(numBytes)
 			t1.append(r)
 			if len(r) < numBytes and "</html>" in r:
