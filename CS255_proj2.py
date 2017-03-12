@@ -4,7 +4,7 @@
 """
 in directory, type:
 chmod 755 scurl
-now it works
+now it works as a shell command
 """
 
 # Tom Kremer
@@ -76,9 +76,9 @@ Constructs a parsed url
 url_object = {
 	common_name: "www.google.com",
 	port: 443 (int)
-	path: '/hello'
-
+	path: '/path'
 }
+Returns none if invalid url type
 """
 def parse_url(url):
 
@@ -119,74 +119,74 @@ def parse_url(url):
 
 	return url_object
 
+"""
+Sets up the socket, context, and connection.
+Returns a conenction object
+"""
+def establish_connection(url_obj, tls_v):
+	# Setting up socket, context, and connection
+	sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+	myContext = SSL.Context(tls_v)
+
+	myContext.set_verify(SSL.VERIFY_PEER|SSL.VERIFY_FAIL_IF_NO_PEER_CERT, cb_func)
+	myContext.set_default_verify_paths()
+	
+	"""
+	Context.set_cipher
+	"""
+
+	myConnection = SSL.Connection(myContext, sock)
+
+	myConnection.set_tlsext_host_name('server')
+	myConnection.set_connect_state()
+
+	myConnection.connect((url_obj['common_name'], url_obj['port']))
+
+	return myConnection
 
 
 def main():
 	global url
 
 	url = "https://www.google.com"
-
-
 	url_object = parse_url(url)
 
-	print url_object['common_name']
-	print url_object['port']
-	print url_object['path']
-
-	# Setting up socket, context, and connection
-	sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-	mycontext = SSL.Context(SSL.TLSv1_METHOD)
-
-	mycontext.set_verify(SSL.VERIFY_PEER|SSL.VERIFY_FAIL_IF_NO_PEER_CERT, cb_func)
-	mycontext.set_default_verify_paths()
-	"""
-	Context.set_default_verify_paths()
-	Context.set_cipher
-	Context.set_verify
-	Write a callback
-	"""
-
-	myconn = SSL.Connection(mycontext, sock)
-
-	myconn.set_tlsext_host_name("server")
-	myconn.set_connect_state()
-
-	myconn.connect((url_object['common_name'], url_object['port']))
+	myConnection = establish_connection(url_object, SSL.TLSv1_METHOD)
+	if myConnection is None:
+		print "Couldn't establish connection ???? "
+		return
 
 	try:
-		myconn.do_handshake()
+		myConnection.do_handshake()
 	except (SSL.ZeroReturnError, SSL.Error):
 		print "Invalid certificate"
 		return
 
 	print "Connection established"
 
-	# cert = myconn.get_peer_certificate()
-	cert_chain = myconn.get_peer_cert_chain()
-	print cert_chain
-	#mycontext.set_options()
+	print myConnection.state_string()
+
+	#myContext.set_options()
 
 	# The browser checks that the certificate was issued by a trusted party 
 	# (usually a trusted root CA), that the certificate is still valid and 
 	# that the certificate is related to the site contacted.
-	print myconn.state_string()
-	myconn.sendall("GET " + url_object['path'] + " HTTP/1.1\r\nHost: " + url_object['common_name'] + "\r\nUser-Agent: Tom and Ben\r\n\r\n") # HTTP/1.1
-	print "Sent a GET to: " + "GET " + url_object['path'] + " HTTP/1.1\r\nHost: " + url_object['common_name'] + "\r\nUser-Agent: Tom and Ben\r\n\r\n"
+	myConnection.sendall("GET " + url_object['path'] + " HTTP/1.1\r\nHost: " + url_object['common_name'] + "\r\nUser-Agent: Tom and Ben\r\n\r\n") # HTTP/1.1
 
 	t1 = []
 	try:
 		numBytes = 1024
 		while True:
-			r = myconn.recv(numBytes)
+			r = myConnection.recv(numBytes)
 			t1.append(r)
 			if len(r) < numBytes and "</html>" in r:
-				print "DONE!"
+				print "DONE getting HTML"
 				break
 	except (SSL.ZeroReturnError, SSL.Error):
 		pass
 
-	myconn.shutdown()
-	myconn.close()
+	myConnection.shutdown()
+	myConnection.close()
 	# print "".join(t1)
 
 
