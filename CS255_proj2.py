@@ -112,9 +112,6 @@ def parse_url(url):
 
 	if not url.startswith('https://'):
 		url = "https://" + url
-
-	if url[8:11] != 'www':
-		url = url[:8] + 'www.' + url[8:]
 	
 	parsed_url = urlparse(url)
 	# ParseResult(scheme='http', netloc='www.cwi.nl:80', path='/%7Eguido/Python.html',
@@ -157,7 +154,7 @@ def establish_connection(url_obj, tls_v):
 
 	myConnection = SSL.Connection(myContext, sock)
 
-	myConnection.set_tlsext_host_name('server')
+	myConnection.set_tlsext_host_name(url_obj['common_name'])
 	myConnection.set_connect_state()
 
 	myConnection.connect((url_obj['common_name'], url_obj['port']))
