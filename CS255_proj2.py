@@ -31,10 +31,6 @@ url_object = {}
 
 def cb_func(conn, cert, errno, errdepth, ok):
 	global url_object
-	print "testing"
-	print "errno: ", errno
-	print "errdepth: ", errdepth
-
 
 	# Checking name on leaf certificate (doesn't work)
 
@@ -59,8 +55,8 @@ def cb_func(conn, cert, errno, errdepth, ok):
 			return False
 		
 		pattern = pattern.replace('.', r'\.').replace('*', r'.*')
-		print url_object['common_name']
-		print pattern
+		# print url_object['common_name']
+		# print pattern
 		if not re.match(pattern, url_object['common_name']):
 			return False		
 
@@ -116,7 +112,7 @@ def parse_url(url):
 	parsed_url = urlparse(url)
 	# ParseResult(scheme='http', netloc='www.cwi.nl:80', path='/%7Eguido/Python.html',
     #        params='', query='', fragment='')
-	print parsed_url
+	# print parsed_url
 
 	if len(parsed_url.netloc) > 0:
 		if ":" in parsed_url.netloc:
@@ -165,26 +161,26 @@ def establish_connection(url_obj, tls_v):
 def main():
 	global url_object
 
-	url = "www.facebook.com"
+	url = "www.reddit.com"
 	worked = parse_url(url)
 	if not worked:
-		"Badly formatted url"
+		# "Badly formatted url"
 		return
 
 	myConnection = establish_connection(url_object, SSL.TLSv1_METHOD)
 	if myConnection is None:
-		print "Couldn't establish connection ???? "
+		# print "Couldn't establish connection ???? "
 		return
 
 	try:
 		myConnection.do_handshake()
 	except (SSL.ZeroReturnError, SSL.Error):
-		print "Invalid certificate"
+		# print "Invalid certificate"
 		return
 
-	print "Connection established"
+	# print "Connection established"
 
-	print myConnection.state_string()
+	# print myConnection.state_string()
 
 	#myContext.set_options()
 
@@ -200,14 +196,22 @@ def main():
 			r = myConnection.recv(numBytes)
 			t1.append(r)
 			if len(r) < numBytes and "</html>" in r:
-				print "DONE getting HTML"
+				# print "DONE getting HTML"
 				break
 	except (SSL.ZeroReturnError, SSL.Error):
 		pass
 
+
+
 	myConnection.shutdown()
 	myConnection.close()
-	# print "".join(t1)
+	html_string = "".join(t1)
+	# print html_string
+	html_body_index = html_string.find('<!DOCTYPE html>')
+	if html_body_index == -1:
+		html_body_index = html_string.find('<!doctype html>')
+	html_body = html_string[html_body_index:]
+	print html_body
 
 
 
