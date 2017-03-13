@@ -1,5 +1,7 @@
 #!/usr/bin/python
 
+# To run sanity check, run this line if scurl is in the current directory:
+# /usr/class/cs255/bin/sanity/sanity $PWD/scurl
 
 """
 to make it a shell command:
