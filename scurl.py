@@ -1,6 +1,5 @@
 #!/usr/bin/python
-
-# To run sanity check, run this line if scurl is in the current directory:
+#anity check, run this line if scurl is in the current directory:
 # /usr/class/cs255/bin/sanity/sanity $PWD/scurl
 
 """
@@ -45,6 +44,19 @@ flagmap = {
 	"--cacert": False,
 	"--allow-stale-certs": False,
 	"pinnedcertificate": False}
+
+def verify_cipher_args(args):
+	#DO WE ONLY NEED THIS TO WORK FOR CORN CIPHERS?????
+	ciphers = "ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-SHA384:ECDHE-ECDSA-AES256-SHA384:ECDHE-RSA-AES256-SHA:ECDHE-ECDSA-AES256-SHA:SRP-DSS-AES-256-CBC-SHA:SRP-RSA-AES-256-CBC-SHA:SRP-AES-256-CBC-SHA:DHE-DSS-AES256-GCM-SHA384:DHE-RSA-AES256-GCM-SHA384:DHE-RSA-AES256-SHA256:DHE-DSS-AES256-SHA256:DHE-RSA-AES256-SHA:DHE-DSS-AES256-SHA:DHE-RSA-CAMELLIA256-SHA:DHE-DSS-CAMELLIA256-SHA:ECDH-RSA-AES256-GCM-SHA384:ECDH-ECDSA-AES256-GCM-SHA384:ECDH-RSA-AES256-SHA384:ECDH-ECDSA-AES256-SHA384:ECDH-RSA-AES256-SHA:ECDH-ECDSA-AES256-SHA:AES256-GCM-SHA384:AES256-SHA256:AES256-SHA:CAMELLIA256-SHA:PSK-AES256-CBC-SHA:ECDHE-RSA-DES-CBC3-SHA:ECDHE-ECDSA-DES-CBC3-SHA:SRP-DSS-3DES-EDE-CBC-SHA:SRP-RSA-3DES-EDE-CBC-SHA:SRP-3DES-EDE-CBC-SHA:EDH-RSA-DES-CBC3-SHA:EDH-DSS-DES-CBC3-SHA:ECDH-RSA-DES-CBC3-SHA:ECDH-ECDSA-DES-CBC3-SHA:DES-CBC3-SHA:PSK-3DES-EDE-CBC-SHA:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-SHA256:ECDHE-ECDSA-AES128-SHA256:ECDHE-RSA-AES128-SHA:ECDHE-ECDSA-AES128-SHA:SRP-DSS-AES-128-CBC-SHA:SRP-RSA-AES-128-CBC-SHA:SRP-AES-128-CBC-SHA:DHE-DSS-AES128-GCM-SHA256:DHE-RSA-AES128-GCM-SHA256:DHE-RSA-AES128-SHA256:DHE-DSS-AES128-SHA256:DHE-RSA-AES128-SHA:DHE-DSS-AES128-SHA:DHE-RSA-SEED-SHA:DHE-DSS-SEED-SHA:DHE-RSA-CAMELLIA128-SHA:DHE-DSS-CAMELLIA128-SHA:ECDH-RSA-AES128-GCM-SHA256:ECDH-ECDSA-AES128-GCM-SHA256:ECDH-RSA-AES128-SHA256:ECDH-ECDSA-AES128-SHA256:ECDH-RSA-AES128-SHA:ECDH-ECDSA-AES128-SHA:AES128-GCM-SHA256:AES128-SHA256:AES128-SHA:SEED-SHA:CAMELLIA128-SHA:PSK-AES128-CBC-SHA:ECDHE-RSA-RC4-SHA:ECDHE-ECDSA-RC4-SHA:ECDH-RSA-RC4-SHA:ECDH-ECDSA-RC4-SHA:RC4-SHA:RC4-MD5:PSK-RC4-SHA:EDH-RSA-DES-CBC-SHA:EDH-DSS-DES-CBC-SHA:DES-CBC-SHA"
+	cipherlist = ciphers.split(":")
+	arglist = args.split(":")
+	for arg in arglist:
+		if(arg not in cipherlist):
+			#print arg + " not in cipherlist"
+			return False
+	return True
+
+
 
 def parse_args():
 	global tls_map, tls_version
@@ -99,7 +111,7 @@ def parse_args():
 
 		elif(sys.argv[i]=='--ciphers'):
 			#NEED TO CONFIRM CIPHERS ARE VALID
-			if(i+1 < len(sys.argv)):
+			if(i+1 < len(sys.argv) and verify_cipher_args(sys.argv[i+1])):
 				flagmap['--ciphers']=sys.argv[i+1]
 				i=i+2
 				continue
@@ -232,8 +244,8 @@ def establish_connection(url_obj):
 	# Setting up socket, context, and connection
 	sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 	myContext = SSL.Context(tls_version)
-
-	myContext.set_verify(SSL.VERIFY_PEER|SSL.VERIFY_FAIL_IF_NO_PEER_CERT, cb_func)
+	if(flagmap['--ciphers'] != False):
+		myContext.set_cipher_list(flagmap['--ciphers'].decode('utf-8'))
 	myContext.set_default_verify_paths()
 	
 	"""
@@ -311,3 +323,4 @@ def main():
 
 if __name__ == "__main__":
 	main()
+
