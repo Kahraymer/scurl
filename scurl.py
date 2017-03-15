@@ -1,4 +1,3 @@
-
 #!/usr/bin/python
 
 # To run sanity check, run this line if scurl is in the current directory:
@@ -8,7 +7,7 @@
 to make it a shell command:
 1) rename the file to just "scurl"
 in directory, type:
-chmod 755 scurl
+chmod +x scurl
 now it works as a shell command
 """
 
@@ -28,16 +27,19 @@ from OpenSSL import crypto
 
 """
 Things that are put on hold:
-Comparing to list of trusted CAs
-doesn't work for stanford.edu (related to www-aws?)
+catch unexpected EOF and treat them as 0 error
 """
 url_object = {}
+tls_version = 0
+tls_map = {
+	"--tlsv1.0": SSL.TLSv1_METHOD,
+	"--tlsv1.1": SSL.TLSv1_1_METHOD,
+	"--tlsv1.2": SSL.TLSv1_2_METHOD,
+	"--sslv3": SSL.SSLv3_METHOD,
+}
 
-flagmap = {"--tlsv1.0": False,
-	"--tlsv1.1": False,
-	"--tlsv1.2": False,
-	"--sslv3": False,
-	"-3": False,
+
+flagmap = {
 	"--ciphers": False,
 	"--crlfile": False,
 	"--cacert": False,
@@ -45,32 +47,16 @@ flagmap = {"--tlsv1.0": False,
 	"pinnedcertificate": False}
 
 def parse_args():
-	print 'Number of arguments:', len(sys.argv), 'arguments.'
-	print 'Argument List:', str(sys.argv)
-	i = 0
+	global tls_map, tls_version
+
+	#print 'Number of arguments:', len(sys.argv), 'arguments.'
+	#print 'Argument List:', str(sys.argv)
+	i = 1
 	while(i < len(sys.argv)):
-		if(sys.argv[i]=='--tlsv1.0'):
-			flagmap['--tlsv1.0'] = True
-			flagmap['--tlsv1.1'] = False
-			flagmap['--tlsv1.2'] = False
-
-		if(sys.argv[i]=='--tlsv1.1'):
-			flagmap['--tlsv1.0'] = False
-			flagmap['--tlsv1.1'] = True
-			flagmap['--tlsv1.2'] = False
-
-		if(sys.argv[i]=='--tlsv1.2'):
-			flagmap['--tlsv1.0'] = False
-			flagmap['--tlsv1.1'] = False
-			flagmap['--tlsv1.2'] = True
-
-		if(sys.argv[i]=='--sslv3'):
-			flagmap['--sslv3'] = True
-
-		if(sys.argv[i]=='-3'):
-			flagmap['-3'] = True
-
-		if(sys.argv[i]=='--cacert'):
+		if (sys.argv[i] in tls_map):
+			tls_version = tls_map[sys.argv[i]]
+	
+		elif(sys.argv[i]=='--cacert'):
 			#NEED TO CONFIRM FILE IS VALID
 			if(i+1 < len(sys.argv)):
 				flagmap['--cacert']= sys.argv[i+1]
@@ -80,7 +66,7 @@ def parse_args():
 				print "scurl: try 'scurl --help' or 'scurl --manual' for more information"
 				return False
 
-		if(sys.argv[i]=='--crlfile'):
+		elif(sys.argv[i]=='--crlfile'):
 			#NEED TO CONFIRM FILE IS VALID
 			if(i+1 < len(sys.argv)):
 				flagmap['--crlfile']=sys.argv[i+1]
@@ -91,7 +77,7 @@ def parse_args():
 				return False
 
 
-		if(sys.argv[i]=='--pinnedcertificate'):
+		elif(sys.argv[i]=='--pinnedcertificate'):
 			#NEED TO CONFIRM FILE IS VALID
 			if(i+1 < len(sys.argv)):
 				flagmap['--pinnedcertificate']=sys.argv[i+1]
@@ -101,7 +87,7 @@ def parse_args():
 				print "scurl: try 'scurl --help' or 'scurl --manual' for more information"
 				return False
 
-		if(sys.argv[i]=='--allow-stale-certs'):
+		elif(sys.argv[i]=='--allow-stale-certs'):
 			if(i+1 < len(sys.argv) and sys.argv[i+1].isdigit() and sys.argv[i+1]>=0):
 				print 'allow stale certs by ' + sys.argv[i+1] + ' days'
 				flagmap["--allow-stale-certs"]= sys.argv[i+1]
@@ -111,7 +97,7 @@ def parse_args():
 				print '--allow-stale-certs invalid N'
 				return False
 
-		if(sys.argv[i]=='--ciphers'):
+		elif(sys.argv[i]=='--ciphers'):
 			#NEED TO CONFIRM CIPHERS ARE VALID
 			if(i+1 < len(sys.argv)):
 				flagmap['--ciphers']=sys.argv[i+1]
@@ -125,7 +111,7 @@ def parse_args():
 			return False
 
 		i=i+1
-	print flagmap
+	#print flagmap
 	return True
 
 
@@ -149,8 +135,12 @@ def cb_func(conn, cert, errno, errdepth, ok):
 		num_dots1 = cert.get_subject().commonName.count('.')
 		num_dots2 = url_object['common_name'].count('.')
 		if num_dots1 != num_dots2:
-			# Wildcard character introduced new periods, which isn't allowed
-			return False
+			# An exception for wildcards. *.google.com should be accepted by google.com
+			if not ((cert.get_subject().commonName[:2] == '*.') and (cert.get_subject().commonName[2:] == url_object['common_name'])):
+
+
+				# Wildcard character introduced new periods, which isn't allowed
+				return False
 		if pattern.rfind('*') > pattern.find('.'):
 			# Asterisk not in left section
 			return False
@@ -236,10 +226,12 @@ def parse_url(url):
 Sets up the socket, context, and connection.
 Returns a conenction object
 """
-def establish_connection(url_obj, tls_v):
+def establish_connection(url_obj):
+	global tls_version
+
 	# Setting up socket, context, and connection
 	sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-	myContext = SSL.Context(tls_v)
+	myContext = SSL.Context(tls_version)
 
 	myContext.set_verify(SSL.VERIFY_PEER|SSL.VERIFY_FAIL_IF_NO_PEER_CERT, cb_func)
 	myContext.set_default_verify_paths()
@@ -259,15 +251,15 @@ def establish_connection(url_obj, tls_v):
 
 
 def main():
-	global url_object
-
+	global url_object, tls_version
+	parse_args()
 	url = "www.facebook.com"
 	worked = parse_url(url)
 	if not worked:
 		# "Badly formatted url"
 		return
 
-	myConnection = establish_connection(url_object, SSL.TLSv1_METHOD)
+	myConnection = establish_connection(url_object)
 	if myConnection is None:
 		# print "Couldn't establish connection ???? "
 		return
@@ -312,8 +304,6 @@ def main():
 		html_body_index = html_string.find('<!doctype html>')
 	html_body = html_string[html_body_index:]
 	print html_body
-	parse_args()
-
 
 
 if __name__ == "__main__":
