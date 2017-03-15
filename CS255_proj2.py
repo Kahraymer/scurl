@@ -26,8 +26,7 @@ from OpenSSL import crypto
 
 """
 Things that are put on hold:
-Comparing to list of trusted CAs
-doesn't work for stanford.edu (related to www-aws?)
+catch unexpected EOS and treat them as 0 error
 """
 url_object = {}
 
@@ -50,8 +49,11 @@ def cb_func(conn, cert, errno, errdepth, ok):
 		num_dots1 = cert.get_subject().commonName.count('.')
 		num_dots2 = url_object['common_name'].count('.')
 		if num_dots1 != num_dots2:
-			# Wildcard character introduced new periods, which isn't allowed
-			return False
+			# An exception for wildcards. *.google.com should be accepted by google.com
+			if not ((cert.get_subject().commonName[:2] == '*.') and (cert.get_subject().commonName[2:] == url_object['common_name'])):
+
+				# Wildcard character introduced new periods, which isn't allowed
+				return False
 		if pattern.rfind('*') > pattern.find('.'):
 			# Asterisk not in left section
 			return False
@@ -76,6 +78,7 @@ def cb_func(conn, cert, errno, errdepth, ok):
 	# else:
 		# print "Valid time"
 
+	# USE DATETIME.PARSE
 	# start_date = int(cert.get_notBefore()[:-1])
 	# exp_date = int(cert.get_notAfter()[:-1])
 	# now = int(datetime.datetime.utcnow().strftime("%Y%m%d%H%M%S"))
