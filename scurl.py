@@ -30,7 +30,7 @@ Things that are put on hold:
 catch unexpected EOF and treat them as 0 error
 """
 url_object = {}
-tls_version = 0
+tls_version = SSL.TLSv1_2_METHOD
 tls_map = {
 	"--tlsv1.0": SSL.TLSv1_METHOD,
 	"--tlsv1.1": SSL.TLSv1_1_METHOD,
@@ -63,8 +63,8 @@ def parse_args():
 				i=i+2
 				continue
 			else:
-				print "scurl: try 'scurl --help' or 'scurl --manual' for more information"
-				return False
+				sys.stderr.write("scurl: try 'scurl --help' or 'scurl --manual' for more information")
+				exit(1)
 
 		elif(sys.argv[i]=='--crlfile'):
 			#NEED TO CONFIRM FILE IS VALID
@@ -73,8 +73,8 @@ def parse_args():
 				i=i+2
 				continue
 			else:
-				print "scurl: try 'scurl --help' or 'scurl --manual' for more information"
-				return False
+				sys.stderr.write("scurl: try 'scurl --help' or 'scurl --manual' for more information")
+				exit(1)
 
 
 		elif(sys.argv[i]=='--pinnedcertificate'):
@@ -84,8 +84,8 @@ def parse_args():
 				i=i+2
 				continue
 			else:
-				print "scurl: try 'scurl --help' or 'scurl --manual' for more information"
-				return False
+				sys.stderr.write("scurl: try 'scurl --help' or 'scurl --manual' for more information")
+				exit(1)
 
 		elif(sys.argv[i]=='--allow-stale-certs'):
 			if(i+1 < len(sys.argv) and sys.argv[i+1].isdigit() and sys.argv[i+1]>=0):
@@ -94,8 +94,8 @@ def parse_args():
 				i=i+2
 				continue
 			else:
-				print '--allow-stale-certs invalid N'
-				return False
+				sys.stderr.write('--allow-stale-certs invalid N')
+				exit(1)
 
 		elif(sys.argv[i]=='--ciphers'):
 			#NEED TO CONFIRM CIPHERS ARE VALID
@@ -104,11 +104,11 @@ def parse_args():
 				i=i+2
 				continue
 			else:
-				print "scurl: try 'scurl --help' or 'scurl --manual' for more information"
-				return False
-		else:
-			print "scurl: try 'scurl --help' or 'scurl --manual' for more information"
-			return False
+				sys.stderr.write( "scurl: try 'scurl --help' or 'scurl --manual' for more information")
+				exit(1)
+		elif not (parse_url(sys.argv[i])):
+			sys.stderr.write("scurl: try 'scurl --help' or 'scurl --manual' for more information")
+			exit(1)
 
 		i=i+1
 	#print flagmap
@@ -189,7 +189,7 @@ Returns none if invalid url type
 """
 def parse_url(url):
 	global url_object	
-
+	#print url
 	if url.startswith('//'):
 		url = 'https:' + url
 
@@ -219,7 +219,7 @@ def parse_url(url):
 			url_object['path'] = '/'
 	else:
 		return False
-
+	#print url_object
 	return True
 
 """
@@ -253,22 +253,22 @@ def establish_connection(url_obj):
 def main():
 	global url_object, tls_version
 	parse_args()
-	url = "www.facebook.com"
-	worked = parse_url(url)
-	if not worked:
+	#url = "www.facebook.com"
+	#worked = parse_url(url)
+	#if not worked:
 		# "Badly formatted url"
-		return
+		# return
 
 	myConnection = establish_connection(url_object)
 	if myConnection is None:
 		# print "Couldn't establish connection ???? "
-		return
+		exit(1)
 
 	try:
 		myConnection.do_handshake()
 	except (SSL.ZeroReturnError, SSL.Error):
 		# print "Invalid certificate"
-		return
+		exit(1)
 
 	# print "Connection established"
 
@@ -303,8 +303,11 @@ def main():
 	if html_body_index == -1:
 		html_body_index = html_string.find('<!doctype html>')
 	html_body = html_string[html_body_index:]
+	end_tag = '</html>'
+	end_index = html_body.find(end_tag)
+	html_body = html_body[:end_index+len(end_tag)]
 	print html_body
-
+	exit(0)
 
 if __name__ == "__main__":
 	main()
